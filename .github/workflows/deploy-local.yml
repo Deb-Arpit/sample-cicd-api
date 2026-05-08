@@ -10,20 +10,25 @@ on:
 jobs:
   build-and-deploy:
     runs-on: self-hosted
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-        
+
     - name: Restore dependencies
       run: dotnet restore
-      
+
     - name: Build
       run: dotnet build --configuration Release --no-restore
-      
+
+    - name: Create deployment directory
+      run: |
+        New-Item -ItemType Directory -Force -Path D:\DeployedApps\Sample_CI_CD_API
+      shell: powershell
+
     - name: Publish
       run: dotnet publish --configuration Release --output D:\DeployedApps\Sample_CI_CD_API --no-build
-      
+
     - name: Stop existing application (if running)
       run: |
         $process = Get-Process -Name "Sample_CI_CD_API" -ErrorAction SilentlyContinue
@@ -31,11 +36,17 @@ jobs:
           Stop-Process -Name "Sample_CI_CD_API" -Force
           Write-Host "Stopped existing application"
         }
-      shell: pwsh
+      shell: powershell
       continue-on-error: true
-      
+
     - name: Start application
       run: |
         Start-Process -FilePath "D:\DeployedApps\Sample_CI_CD_API\Sample_CI_CD_API.exe" -WorkingDirectory "D:\DeployedApps\Sample_CI_CD_API"
         Write-Host "Application started successfully"
-      shell: pwsh
+      shell: powershell
+
+    - name: Upload Build Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: sample-api-build
+        path: D:\DeployedApps\Sample_CI_CD_API
