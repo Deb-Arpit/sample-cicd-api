@@ -1,0 +1,64 @@
+name: Deploy as Windows Service
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
+      
+    - name: Publish
+      run: dotnet publish --configuration Release --output D:\DeployedApps\Sample_CI_CD_API --no-build
+      
+    - name: Stop Windows Service (if exists)
+      run: |
+        $service = Get-Service -Name "SampleCICDAPI" -ErrorAction SilentlyContinue
+        if ($service) {
+          Stop-Service -Name "SampleCICDAPI" -Force
+          Write-Host "Service stopped"
+        }
+      shell: pwsh
+      continue-on-error: true
+      
+    - name: Delete old service (if exists)
+      run: |
+        $service = Get-Service -Name "SampleCICDAPI" -ErrorAction SilentlyContinue
+        if ($service) {
+          sc.exe delete SampleCICDAPI
+          Write-Host "Old service deleted"
+          Start-Sleep -Seconds 2
+        }
+      shell: pwsh
+      continue-on-error: true
+      
+    - name: Create Windows Service
+      run: |
+        sc.exe create SampleCICDAPI binPath="D:\DeployedApps\Sample_CI_CD_API\Sample_CI_CD_API.exe" start=auto
+        Write-Host "Service created"
+      shell: pwsh
+      
+    - name: Start Windows Service
+      run: |
+        Start-Service -Name "SampleCICDAPI"
+        Write-Host "Service started successfully"
+      shell: pwsh

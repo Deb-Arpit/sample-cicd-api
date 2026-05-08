@@ -1,0 +1,49 @@
+name: Deploy to Local Machine
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  build-and-deploy:
+    runs-on: self-hosted # This tells GitHub to use your local runner
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+      
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
+      
+    - name: Publish
+      run: dotnet publish --configuration Release --output D:\DeployedApps\Sample_CI_CD_API --no-build
+      
+    - name: Stop existing application (if running)
+      run: |
+        $process = Get-Process -Name "Sample_CI_CD_API" -ErrorAction SilentlyContinue
+        if ($process) {
+          Stop-Process -Name "Sample_CI_CD_API" -Force
+          Write-Host "Stopped existing application"
+        }
+      shell: pwsh
+      continue-on-error: true
+      
+    - name: Start application
+      run: |
+        Start-Process -FilePath "D:\DeployedApps\Sample_CI_CD_API\Sample_CI_CD_API.exe" -WorkingDirectory "D:\DeployedApps\Sample_CI_CD_API"
+        Write-Host "Application started successfully"
+      shell: pwsh
